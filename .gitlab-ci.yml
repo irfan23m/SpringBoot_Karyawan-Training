@@ -1,0 +1,62 @@
+image: artifactory.pegadaian.co.id:8084/docker:latest
+
+variables:
+  DOCKER_AUTH_CONFIG: '{"auths": {"artifactory.pegadaian.co.id:8084": {"auth": "$NEXUS_TOKEN"},"artifactory.pegadaian.co.id:5443": {"auth": "$NEXUS_TOKEN"}}}'
+
+stages:
+  - build jar
+  - build and push docker image
+  - deploy
+
+build:
+  image: artifactory.pegadaian.co.id:8084/maven:3-jdk-8-alpine
+  stage: build jar
+  before_script:
+    - source .${CI_COMMIT_REF_NAME}.env
+  script:
+    - mvn clean install -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE && mvn package -B -e -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE
+  artifacts:
+    paths:
+      - target/*.jar
+  when: manual
+
+docker build:
+  stage: build and push docker image
+  before_script:
+    - source .${CI_COMMIT_REF_NAME}.env
+  script:
+    - mkdir -p ~/.docker/ && echo $DOCKER_AUTH_CONFIG > ~/.docker/config.json
+#   - docker build --no-cache -t artifactory.pegadaian.co.id:5443/$CI_PROJECT_NAME/$CORE_APP:$CI_COMMIT_REF_NAME -f M24Core/Dockerfile .
+    - docker build --build-arg SPRING_ACTIVE_PROFILE=$SPRING_ACTIVE_PROFILE  --no-cache -t $DOCKER_REPO .
+    - docker login artifactory.pegadaian.co.id:5443 -u $NEXUS_DOCKER_USER -p $NEXUS_DOCKER_PASS
+    - docker push $DOCKER_REPO
+  dependencies:
+    - build
+  when: manual
+
+deploy:
+#  image: ubuntu:latest
+  stage: deploy
+  before_script:
+    - mkdir -p ~/.ssh && cat "$SSH_PRIVATE_KEY_82" > ~/.ssh/id_rsa && chmod -R 600 ~/.ssh
+#    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+#    - eval $(ssh-agent -s)
+#    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+#    - mkdir -p ~/.ssh
+#    - chmod 700 ~/.ssh
+#    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - source .${CI_COMMIT_REF_NAME}.env
+  script:
+    - >
+        ssh -q -t -p 1818 -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@$IP_HOST_STAGING_82 
+        " 
+         docker ps -aq --filter name=$APP_NAME | xargs -i sudo docker rm -fv {}
+         docker image ls -a | grep $DOCKER_REPO | awk '{print \$3}' | xargs -i sudo docker rmi -f {}
+         docker run -d -p 6968:8080 -e SPRING_PROFILES_ACTIVE=$SPRING_ACTIVE_PROFILE --name $APP_NAME $DOCKER_REPO
+         docker logout
+        "
+  dependencies:
+    - docker build
+  when: manual
+  only:
+    - master
