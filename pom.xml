@@ -62,6 +62,14 @@
 		</dependency>
 
 	</dependencies>
+	
+	<distributionManagement>
+	  	<repository>
+	    	<id>pegadaian-maven</id>
+	    	<name>pegadaian-maven</name>
+	    	<url>${env.MAVEN_REPO_URL}/repository/karyawan-maven-release</url>
+	  	</repository>
+	</distributionManagement>
 
 	<build>
 		<plugins>
