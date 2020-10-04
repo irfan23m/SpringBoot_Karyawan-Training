@@ -15,8 +15,9 @@ build:
     - source .${CI_COMMIT_REF_NAME}.env
   script:
 #    - mvn clean install -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE && mvn package -B -e -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE
-    - mvn -B -e -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE clean compile
-    - mvn -B -e -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE deploy
+#    - mvn -B -e -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE clean compile
+#    - mvn -B -e -Dspring.profiles.active=$SPRING_ACTIVE_PROFILE deploy
+    - echo irfan
   artifacts:
     paths:
       - target/*.jar
